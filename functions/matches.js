@@ -157,54 +157,62 @@ export async function onRequest(context) {
         }
       }
 
-      if (id) {
-        fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
+if (id) {
+  fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
+    .then(res => res.json())
+    .then(data => {
+      let streamUrl = data.deismackanal || "";
+
+      // 🔧 edge sunucusunu her zaman edge4 yap
+      if (streamUrl.includes("edge")) {
+        streamUrl = streamUrl.replace(/edge\d+/i, "edge4");
+      }
+
+      if (streamUrl && streamUrl.includes("m3u8")) {
+        startAdThenMain(streamUrl);
+      } else {
+        const requestData = {
+          AppId: "5000",
+          AppVer: "1",
+          VpcVer: "1.0.12",
+          Language: "en",
+          Token: "",
+          VideoId: id
+        };
+
+        fetch("https://streamsport365.com/cinema", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "*/*"
+          },
+          body: JSON.stringify(requestData)
+        })
           .then(res => res.json())
-          .then(data => {
-            const streamUrl = data.deismackanal || "";
-
-            if (streamUrl && streamUrl.includes("m3u8")) {
-              startAdThenMain(streamUrl);
+          .then(result => {
+            if (result.URL) {
+              // 🔧 Burada da edge ne olursa olsun edge4’e zorla
+              let fixedUrl = result.URL.replace(/edge\d+/i, "edge4");
+              startAdThenMain(fixedUrl);
             } else {
-              const requestData = {
-                AppId: "5000",
-                AppVer: "1",
-                VpcVer: "1.0.12",
-                Language: "en",
-                Token: "",
-                VideoId: id
-              };
-
-              fetch("https://streamsport365.com/cinema", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Accept": "*/*"
-                },
-                body: JSON.stringify(requestData)
-              })
-                .then(res => res.json())
-                .then(result => {
-                  if (result.URL) {
-                    startAdThenMain(result.URL);
-                  } else {
-                    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
-                  }
-                })
-                .catch(err => {
-                  console.error("Eski sistem hatası:", err);
-                  document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
-                });
+              document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
             }
           })
           .catch(err => {
-            console.error("Veritabanı yayını alınamadı:", err);
+            console.error("Eski sistem hatası:", err);
             document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
           });
-      } else {
-        document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
       }
-    </script>
+    })
+    .catch(err => {
+      console.error("Veritabanı yayını alınamadı:", err);
+      document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
+    });
+} else {
+  document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
+}
+</script>
+
 
   </body>
 </html>
