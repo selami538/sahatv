@@ -82,132 +82,129 @@ export async function onRequest(context) {
       <div id="ad-timer" style="display: none;"></div>
       <div id="skip-btn" onclick="skipAd()">Reklamı Atla</div>
     </div>
-<script>
-  const id = "${id}";
-  const reklamVideo = "${reklamVideo}";
-  const reklamSure = ${reklamSure};
-  const reklamDurum = ${reklamDurum};
-  let adPlayer = null;
-  let countdown = null;
+ <script>
+      const id = "${id}";
+      const reklamVideo = "${reklamVideo}";
+      const reklamSure = ${reklamSure};
+      const reklamDurum = ${reklamDurum};
+      let adPlayer = null;
+      let countdown = null;
 
-  function startMainPlayer(mainUrl) {
-    const options = {
-      source: mainUrl,
-      parentId: "#player",
-      autoPlay: true,
-      width: "100%",
-      height: "100%",
-      mimeType: "application/x-mpegURL"
-    };
+      function startMainPlayer(mainUrl) {
+        const options = {
+          source: mainUrl,
+          parentId: "#player",
+          autoPlay: true,
+          width: "100%",
+          height: "100%",
+          mimeType: "application/x-mpegURL"
+        };
 
-    ${playerLogo ? `options.watermark = "${playerLogo}";` : ""}
-    ${playerSite ? `options.watermarkLink = "${playerSite}";` : ""}
-    ${playerLogoyer ? `options.position = "${playerLogoyer}";` : ""}
-    ${playerPoster ? `options.poster = "${playerPoster}";` : ""}
+        ${playerLogo ? `options.watermark = "${playerLogo}";` : ""}
+        ${playerSite ? `options.watermarkLink = "${playerSite}";` : ""}
+        ${playerLogoyer ? `options.position = "${playerLogoyer}";` : ""}
+        ${playerPoster ? `options.poster = "${playerPoster}";` : ""}
 
-    new Clappr.Player(options);
-  }
+        new Clappr.Player(options);
+      }
 
-  function skipAd() {
-    if (adPlayer) adPlayer.destroy();
-    clearInterval(countdown);
-    document.getElementById("ad-timer").style.display = "none";
-    document.getElementById("skip-btn").style.display = "none";
-    startMainPlayer(window.mainStreamUrl);
-  }
-
-  function startAdThenMain(mainUrl) {
-    window.mainStreamUrl = mainUrl;
-
-    if (reklamDurum === 1 && reklamVideo && reklamSure > 0) {
-      adPlayer = new Clappr.Player({
-        source: reklamVideo,
-        parentId: "#player",
-        autoPlay: true,
-        width: "100%",
-        height: "100%"
-      });
-
-      const timerDiv = document.getElementById("ad-timer");
-      const skipBtn = document.getElementById("skip-btn");
-
-      let remaining = reklamSure;
-      timerDiv.style.display = "block";
-      timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
-
-      countdown = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-          clearInterval(countdown);
+      function skipAd() {
+        if (adPlayer) {
           adPlayer.destroy();
-          timerDiv.style.display = "none";
-          skipBtn.style.display = "none";
-          startMainPlayer(mainUrl);
-        } else {
+        }
+        clearInterval(countdown);
+        document.getElementById("ad-timer").style.display = "none";
+        document.getElementById("skip-btn").style.display = "none";
+        startMainPlayer(window.mainStreamUrl);
+      }
+
+      function startAdThenMain(mainUrl) {
+        window.mainStreamUrl = mainUrl;
+
+        if (reklamDurum === 1 && reklamVideo && reklamSure > 0) {
+          adPlayer = new Clappr.Player({
+            source: reklamVideo,
+            parentId: "#player",
+            autoPlay: true,
+            width: "100%",
+            height: "100%"
+          });
+
+          const timerDiv = document.getElementById("ad-timer");
+          const skipBtn = document.getElementById("skip-btn");
+
+          let remaining = reklamSure;
+          timerDiv.style.display = "block";
           timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
-          if (remaining <= reklamSure - 5) skipBtn.style.display = "block";
-        }
-      }, 1000);
-    } else {
-      startMainPlayer(mainUrl);
-    }
-  }
 
-  if (id) {
-    fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
-      .then(res => res.json())
-      .then(data => {
-        let streamUrl = data.deismackanal || "";
-
-        // 🔧 BURADA edge sunucusunu manuel olarak edge4 yapıyoruz
-        if (streamUrl.includes("edge")) {
-          streamUrl = streamUrl.replace(/edge\d+/i, "edge4");
-        }
-
-        if (streamUrl && streamUrl.includes("m3u8")) {
-          startAdThenMain(streamUrl);
-        } else {
-          const requestData = {
-            AppId: "5000",
-            AppVer: "1",
-            VpcVer: "1.0.12",
-            Language: "en",
-            Token: "",
-            VideoId: id
-          };
-
-          fetch("https://streamsport365.com/cinema", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "*/*"
-            },
-            body: JSON.stringify(requestData)
-          })
-            .then(res => res.json())
-            .then(result => {
-              if (result.URL) {
-                // 🔧 Yine aynı şekilde edge4’e zorluyoruz
-                let fixedUrl = result.URL.replace(/edge\d+/i, "edge4");
-                startAdThenMain(fixedUrl);
-              } else {
-                document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
+          countdown = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+              clearInterval(countdown);
+              adPlayer.destroy();
+              timerDiv.style.display = "none";
+              skipBtn.style.display = "none";
+              startMainPlayer(mainUrl);
+            } else {
+              timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
+              if (remaining <= reklamSure - 5) {
+                skipBtn.style.display = "block";
               }
-            })
-            .catch(err => {
-              console.error("Eski sistem hatası:", err);
-              document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
-            });
+            }
+          }, 1000);
+        } else {
+          startMainPlayer(mainUrl);
         }
-      })
-      .catch(err => {
-        console.error("Veritabanı yayını alınamadı:", err);
-        document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
-      });
-  } else {
-    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
-  }
-</script>
+      }
+
+      if (id) {
+        fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
+          .then(res => res.json())
+          .then(data => {
+            const streamUrl = data.deismackanal || "";
+
+            if (streamUrl && streamUrl.includes("m3u8")) {
+              startAdThenMain(streamUrl);
+            } else {
+              const requestData = {
+                AppId: "5000",
+                AppVer: "1",
+                VpcVer: "1.0.12",
+                Language: "en",
+                Token: "",
+                VideoId: id
+              };
+
+              fetch("https://streamsport365.com/cinema", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Accept": "*/*"
+                },
+                body: JSON.stringify(requestData)
+              })
+                .then(res => res.json())
+                .then(result => {
+                  if (result.URL) {
+                    startAdThenMain(result.URL);
+                  } else {
+                    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
+                  }
+                })
+                .catch(err => {
+                  console.error("Eski sistem hatası:", err);
+                  document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
+                });
+            }
+          })
+          .catch(err => {
+            console.error("Veritabanı yayını alınamadı:", err);
+            document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
+          });
+      } else {
+        document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
+      }
+    </script>
 
   </body>
 </html>
