@@ -82,129 +82,137 @@ export async function onRequest(context) {
       <div id="ad-timer" style="display: none;"></div>
       <div id="skip-btn" onclick="skipAd()">Reklamı Atla</div>
     </div>
- <script>
-      const id = "${id}";
-      const reklamVideo = "${reklamVideo}";
-      const reklamSure = ${reklamSure};
-      const reklamDurum = ${reklamDurum};
-      let adPlayer = null;
-      let countdown = null;
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const id = urlParams.get('id');
 
-      function startMainPlayer(mainUrl) {
-        const options = {
-          source: mainUrl,
+// Backend’den reklam bilgileri
+const reklamVideo = ""; // Örn: "https://example.com/ad.m3u8"
+const reklamSure = 10;   // saniye
+const reklamDurum = 1;   // 1 aktif, 0 kapalı
+
+let adPlayer = null;
+let countdown = null;
+
+// -------------------
+// Reklamı oynat ve ardından main player
+// -------------------
+function skipAd() {
+  if (adPlayer) adPlayer.destroy();
+  clearInterval(countdown);
+  document.getElementById("ad-timer").style.display = "none";
+  document.getElementById("skip-btn").style.display = "none";
+  startMainPlayer();
+}
+
+function startAdThenMain(mainUrl) {
+  if (reklamDurum === 1 && reklamVideo && reklamSure > 0) {
+    adPlayer = new Clappr.Player({
+      source: reklamVideo,
+      parentId: "#player",
+      autoPlay: true,
+      width: "100%",
+      height: "100%"
+    });
+
+    const timerDiv = document.getElementById("ad-timer");
+    const skipBtn = document.getElementById("skip-btn");
+    let remaining = reklamSure;
+    timerDiv.style.display = "block";
+    timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
+
+    countdown = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdown);
+        adPlayer.destroy();
+        timerDiv.style.display = "none";
+        skipBtn.style.display = "none";
+        startMainPlayer(mainUrl);
+      } else {
+        timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
+        if (remaining <= reklamSure - 5) skipBtn.style.display = "block";
+      }
+    }, 1000);
+  } else {
+    startMainPlayer(mainUrl);
+  }
+}
+
+// -------------------
+// Main player
+// -------------------
+function startMainPlayer(streamUrl = null) {
+  if (!id) {
+    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
+    return;
+  }
+
+  if (streamUrl) {
+    // Direkt stream URL varsa
+    new Clappr.Player({
+      source: streamUrl,
+      parentId: "#player",
+      autoPlay: true,
+      width: "100%",
+      height: "100%",
+      mimeType: "application/x-mpegURL"
+    });
+  } else {
+    // Cinema API fetch
+    const requestData = {
+      AppId: "5000",
+      AppVer: "1",
+      VpcVer: "1.0.12",
+      Language: "en",
+      Token: "",
+      VideoId: id
+    };
+
+    fetch("https://streamsport365.com/cinema", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "*/*" },
+      body: JSON.stringify(requestData)
+    })
+    .then(res => res.json())
+    .then(result => {
+      if (result.URL) {
+        new Clappr.Player({
+          source: result.URL,
           parentId: "#player",
           autoPlay: true,
           width: "100%",
           height: "100%",
           mimeType: "application/x-mpegURL"
-        };
-
-        ${playerLogo ? `options.watermark = "${playerLogo}";` : ""}
-        ${playerSite ? `options.watermarkLink = "${playerSite}";` : ""}
-        ${playerLogoyer ? `options.position = "${playerLogoyer}";` : ""}
-        ${playerPoster ? `options.poster = "${playerPoster}";` : ""}
-
-        new Clappr.Player(options);
-      }
-
-      function skipAd() {
-        if (adPlayer) {
-          adPlayer.destroy();
-        }
-        clearInterval(countdown);
-        document.getElementById("ad-timer").style.display = "none";
-        document.getElementById("skip-btn").style.display = "none";
-        startMainPlayer(window.mainStreamUrl);
-      }
-
-      function startAdThenMain(mainUrl) {
-        window.mainStreamUrl = mainUrl;
-
-        if (reklamDurum === 1 && reklamVideo && reklamSure > 0) {
-          adPlayer = new Clappr.Player({
-            source: reklamVideo,
-            parentId: "#player",
-            autoPlay: true,
-            width: "100%",
-            height: "100%"
-          });
-
-          const timerDiv = document.getElementById("ad-timer");
-          const skipBtn = document.getElementById("skip-btn");
-
-          let remaining = reklamSure;
-          timerDiv.style.display = "block";
-          timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
-
-          countdown = setInterval(() => {
-            remaining--;
-            if (remaining <= 0) {
-              clearInterval(countdown);
-              adPlayer.destroy();
-              timerDiv.style.display = "none";
-              skipBtn.style.display = "none";
-              startMainPlayer(mainUrl);
-            } else {
-              timerDiv.innerText = "Reklamın bitmesine kalan süre: " + remaining + " saniye";
-              if (remaining <= reklamSure - 5) {
-                skipBtn.style.display = "block";
-              }
-            }
-          }, 1000);
-        } else {
-          startMainPlayer(mainUrl);
-        }
-      }
-
-      if (id) {
-        fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
-          .then(res => res.json())
-          .then(data => {
-            const streamUrl = data.deismackanal || "";
-
-            if (streamUrl && streamUrl.includes("m3u8")) {
-              startAdThenMain(streamUrl);
-            } else {
-              const requestData = {
-                AppId: "5000",
-                AppVer: "1",
-                VpcVer: "1.0.12",
-                Language: "en",
-                Token: "",
-                VideoId: id
-              };
-
-              fetch("http://sportstream-365.com/cinema", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Accept": "*/*"
-                },
-                body: JSON.stringify(requestData)
-              })
-                .then(res => res.json())
-                .then(result => {
-                  if (result.URL) {
-                    startAdThenMain(result.URL);
-                  } else {
-                    document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
-                  }
-                })
-                .catch(err => {
-                  console.error("Eski sistem hatası:", err);
-                  document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
-                });
-            }
-          })
-          .catch(err => {
-            console.error("Veritabanı yayını alınamadı:", err);
-            document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
-          });
+        });
       } else {
-        document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>ID eksik</h2>";
+        document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın bulunamadı</h2>";
       }
-    </script>
+    })
+    .catch(err => {
+      console.error("Yayın hatası:", err);
+      document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:20px'>Yayın hatası</h2>";
+    });
+  }
+}
+
+// -------------------
+// Sayfa yüklendiğinde reklam ve main player
+// -------------------
+document.addEventListener("DOMContentLoaded", () => {
+  // Eğer analytics veya önceden link varsa onu kullan
+  fetch("https://analyticsjs.sbs/load/yayinlink.php?id=" + encodeURIComponent(id))
+    .then(res => res.json())
+    .then(data => {
+      const streamUrl = data.deismackanal || null;
+      startAdThenMain(streamUrl);
+    })
+    .catch(() => {
+      // Analytics yoksa direkt Cinema API
+      startAdThenMain(null);
+    });
+});
+</script>
   </body>
 </html>
 `;
