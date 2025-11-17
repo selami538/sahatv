@@ -175,7 +175,7 @@ export async function onRequest(context) {
                 VideoId: id
               };
 
-              fetch("https://bizbet08558.bar/cinema", {
+              fetch("http://sportstream-365.com/cinema", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
